@@ -1,4 +1,0 @@
-services:
-  app:
-    build: .
-    image: dummy-app-image:latest

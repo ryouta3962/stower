@@ -1,7 +1,10 @@
+# config.yml
 projects:
-  - name: "stower-self-build"
-    repo: "https://github.com/ryouta3962/stower.git"
+  - name: "dummy-web-production"
+    repo: "https://github.com/ryouta3962/test_web.git" # ★ここを本物のGitHub URLにする
     branch: "main"
     trigger:
       type: "polling"
-      interval: "1m"
+      interval: "30s" # 30秒ごとにGitHubを覗きに行く
+    registry:
+      server: "localhost:5000"

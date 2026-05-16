@@ -1,0 +1,22 @@
+services:
+  # テスト用のローカル・セルフホストレジストリ
+  local-registry:
+    image: registry:2
+    container_name: local-registry
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+  stower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stower-ci
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config.yml:/app/config.yml:ro
+      - ./workspace:/app/workspace
+    # 今回はローカルレジストリに認証なしでPushするので.envはまだ使いません
+    depends_on:
+      - local-registry
