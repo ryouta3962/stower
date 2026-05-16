@@ -1,0 +1,7 @@
+projects:
+  - name: "stower-self-build"
+    repo: "https://github.com/ryouta3962/stower.git"
+    branch: "main"
+    trigger:
+      type: "polling"
+      interval: "1m"

@@ -1,0 +1,20 @@
+# プロジェクトルートに作成: compose.yml
+
+services:
+  stower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stower-ci
+    restart: unless-stopped
+    volumes:
+      # 【超重要】ホストのDockerエンジンをコンテナ内から操作するためのマウント
+      - /var/run/docker.sock:/var/run/docker.sock
+      
+      # Stowerの設定ファイルを読み取り専用でマウント
+      - ./config.yml:/app/config.yml:ro
+      
+      # Gitクローンしてビルドするための作業用ディレクトリをマウント
+      - ./workspace:/app/workspace
+    # env_file:
+    #   - .env # 後でクレデンシャル情報を入れる時にコメントアウトを外します
