@@ -105,6 +105,7 @@ func main() {
 	http.HandleFunc("PUT /api/projects/{id}", handlePutProject)
 	http.HandleFunc("DELETE /api/projects/{id}", handleDeleteProject)
 	http.HandleFunc("POST /api/projects/{id}/trigger", handleTriggerProject)
+	http.HandleFunc("GET /api/projects/{id}/logs", handleGetProjectLogs) // ★ 追加
 	
 	http.Handle("/", http.FileServer(http.Dir("/app/public")))
 

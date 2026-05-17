@@ -1,13 +1,16 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -26,18 +29,43 @@ func setProjectStatus(projID string, status string, logMsg string) {
 	}
 }
 
-// ★ 修正: Dockerコマンドの出力を取得できるように変更
-func runDockerCompose(targetDir string, args ...string) (string, error) {
+// ★ 修正: コマンドの出力を1行ずつリアルタイムに読み取り、コールバックに渡す関数
+func runDockerComposeStream(targetDir string, logCallback func(string), args ...string) error {
 	cmdArgs := append([]string{"compose"}, args...)
 	cmd := exec.Command("docker", cmdArgs...)
 	cmd.Dir = targetDir
-	
-	// CombinedOutput で標準出力・エラー出力を両方キャプチャ
-	out, err := cmd.CombinedOutput()
+
+	// 標準出力と標準エラーのパイプを作成
+	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return string(out), fmt.Errorf("%v", err)
+		return err
 	}
-	return string(out), nil
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	// 並行してログを読み取るためのWaitGroup
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	readStream := func(r io.Reader) {
+		defer wg.Done()
+		scanner := bufio.NewScanner(r)
+		for scanner.Scan() {
+			logCallback(scanner.Text()) // 1行出力されるごとにコールバックを実行！
+		}
+	}
+
+	go readStream(stdoutPipe)
+	go readStream(stderrPipe)
+
+	wg.Wait()
+	return cmd.Wait()
 }
 
 func loginDocker(reg Registry) error {
@@ -76,16 +104,22 @@ func cloneRepo(repo, branch, dest string) error {
 func runPipeline(proj Project) error {
 	projID := getProjectID(proj)
 	dest := filepath.Join("/app/workspace", projID)
-	
-	var fullLog strings.Builder
-	setProjectStatus(projID, "Building", "Starting pipeline...\n")
 
-	// ログ追記用の簡易関数
+	var fullLog strings.Builder
+	var logMutex sync.Mutex
+
+	// ★ ログを追記して、即座にステータスを更新する関数
 	appendLog := func(msg string) {
+		logMutex.Lock()
 		fullLog.WriteString(msg + "\n")
-		// リアルタイムにBuilding状態でログを更新しておく
-		setProjectStatus(projID, "Building", fullLog.String())
+		currentLog := fullLog.String()
+		logMutex.Unlock()
+		
+		// リアルタイムにメモリ上のログを更新
+		setProjectStatus(projID, "Building", currentLog)
 	}
+
+	appendLog("Starting pipeline...")
 
 	if err := loginDocker(proj.Registry); err != nil {
 		appendLog(fmt.Sprintf("⚠️ Docker login failed (skipping): %v", err))
@@ -99,8 +133,8 @@ func runPipeline(proj Project) error {
 	}
 
 	appendLog("🔨 Starting Build...")
-	out, err := runDockerCompose(dest, "build")
-	appendLog(out) // ビルドログを追記
+	// runDockerCompose ではなく、ストリーミング用の関数を呼ぶ
+	err := runDockerComposeStream(dest, appendLog, "build")
 	if err != nil {
 		appendLog(fmt.Sprintf("❌ Build failed: %v", err))
 		setProjectStatus(projID, "Failed", fullLog.String())
@@ -108,8 +142,7 @@ func runPipeline(proj Project) error {
 	}
 
 	appendLog("🚀 Starting Push...")
-	out, err = runDockerCompose(dest, "push")
-	appendLog(out) // プッシュログを追記
+	err = runDockerComposeStream(dest, appendLog, "push")
 	if err != nil {
 		appendLog(fmt.Sprintf("❌ Push failed: %v", err))
 		setProjectStatus(projID, "Failed", fullLog.String())

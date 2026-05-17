@@ -142,3 +142,20 @@ func handleTriggerProject(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 	fmt.Fprintf(w, `{"message": "Build triggered successfully!"}`)
 }
+
+// GET /api/projects/{id}/logs
+func handleGetProjectLogs(w http.ResponseWriter, r *http.Request) {
+	targetID := r.PathValue("id")
+
+	configMutex.Lock()
+	defer configMutex.Unlock()
+
+	for _, p := range globalConfig.Projects {
+		if getProjectID(p) == targetID {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.Write([]byte(p.LastLog))
+			return
+		}
+	}
+	http.Error(w, "Project not found", http.StatusNotFound)
+}

@@ -1,17 +1,19 @@
 /* public/main.js */
-let editingId = null; // 更新モード判定用の変数
-let currentProjects = []; // ★ 追加: ログ表示用にデータを保持しておく配列
+let editingId = null;
+let currentProjects = [];
+let currentLogProjectId = null; // ★ 追加: 現在開いているログのプロジェクトID
+let logInterval = null; // ★ 追加: ログ高速フェッチ用のタイマー
 
 async function fetchProjects() {
     try {
         const res = await fetch('/api/projects');
         const projects = await res.json();
-        const tbody = document.getElementById('project-list');
-        
-        // 編集中のプロジェクトがある場合は、UIのチラつきを防ぐため再描画をスキップする
+        currentProjects = projects || [];
+
+        // 編集中のプロジェクトがある場合は、一覧表の再描画によるチラつきを防ぐ
         if (editingId) return;
 
-        currentProjects = projects || []; // データを保持
+        const tbody = document.getElementById('project-list');
         tbody.innerHTML = '';
 
         if (currentProjects.length === 0) {
@@ -57,19 +59,56 @@ async function fetchProjects() {
     }
 }
 
-// ★ 追加: ログモーダルの表示・非表示コントロール
+// ★ 修正: モーダルの開閉関数
 function showLog(id) {
     const p = currentProjects.find(x => x.id === id);
     if (!p) return;
     
+    currentLogProjectId = id; // ★ 開いているIDを記録
+    
     document.getElementById('log-modal-title').innerHTML = `<i class="fa-solid fa-terminal"></i> Logs: ${p.repo.split('/').pop()}`;
     document.getElementById('log-modal-content').innerText = p.last_log || "No logs available yet. Please trigger a build.";
     document.getElementById('log-modal').showModal();
+    
+    const article = document.querySelector('#log-modal article');
+    article.scrollTop = article.scrollHeight;
+
+    // ★ 追加: 500msごとに特定のプロジェクトのログだけをフェッチしてUI更新
+    if (logInterval) clearInterval(logInterval);
+    logInterval = setInterval(async () => {
+        try {
+            const res = await fetch(`/api/projects/${id}/logs`);
+            if (res.ok) {
+                const text = await res.text();
+                const logContent = document.getElementById('log-modal-content');
+                const isScrolledToBottom = article.scrollHeight - article.scrollTop <= article.clientHeight + 30;
+                
+                logContent.innerText = text || "No logs available yet.";
+                if (isScrolledToBottom) {
+                    article.scrollTop = article.scrollHeight;
+                }
+            }
+        } catch (e) {
+            console.error("Failed to fetch logs", e);
+        }
+    }, 500);
 }
 
 function closeLogModal() {
+    currentLogProjectId = null; // ★ 閉じたらIDをリセット
+    if (logInterval) {
+        clearInterval(logInterval);
+        logInterval = null;
+    }
     document.getElementById('log-modal').close();
 }
+
+// ★ 追加: モーダルの外側をクリックしたら閉じる処理
+document.getElementById('log-modal').addEventListener('click', function(event) {
+    if (event.target === this) {
+        closeLogModal();
+    }
+});
 
 // --- 削除機能 ---
 async function deleteProject(id) {
