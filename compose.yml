@@ -6,17 +6,44 @@ services:
     ports:
       - "5000:5000"
     restart: unless-stopped
+    # ★ここをごっそり追加（CORSを許可する魔法の呪文です）
+    environment:
+      REGISTRY_HTTP_HEADERS_Access-Control-Allow-Origin: "['*']"
+      REGISTRY_HTTP_HEADERS_Access-Control-Allow-Methods: "['HEAD', 'GET', 'OPTIONS', 'DELETE']"
+      REGISTRY_HTTP_HEADERS_Access-Control-Allow-Headers: "['Authorization', 'Accept', 'Cache-Control']"
+      REGISTRY_HTTP_HEADERS_Access-Control-Expose-Headers: "['Docker-Content-Digest']"
+      TZ: "Asia/Tokyo"
 
+  # レジストリ確認用のブラウザUI
+  registry-ui:
+    image: joxit/docker-registry-ui:main
+    container_name: registry-ui
+    ports:
+      - "8081:80"
+    environment:
+      - REGISTRY_TITLE=Stower Local Registry
+      - REGISTRY_URL=http://localhost:5000 # ★ここも localhost に明示的に変更しておくと確実です
+      - DELETE_IMAGES=true
+      - TZ=Asia/Tokyo
+    depends_on:
+      - local-registry
+  # Stower本体
+# compose.yml （Stower部分のみ抜粋して変更）
   stower:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: stower-ci
     restart: unless-stopped
+    ports:
+      - "8080:8080" # ★API用のポートを開放
+# compose.yml （stowerのvolumes部分のみ）
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./config.yml:/app/config.yml:ro
+      - ./config.yml:/app/config.yml
       - ./workspace:/app/workspace
-    # 今回はローカルレジストリに認証なしでPushするので.envはまだ使いません
+      - ./public:/app/public # ★これを追加（HTMLファイル群のマウント）
     depends_on:
       - local-registry
+    environment:
+      - TZ=Asia/Tokyo

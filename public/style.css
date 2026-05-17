@@ -1,0 +1,4 @@
+/* public/style.css */
+body { padding-top: 2rem; }
+.hero { margin-bottom: 2rem; text-align: center; }
+.actions button { padding: 0.2rem 0.5rem; font-size: 0.8rem; margin-bottom: 0; }

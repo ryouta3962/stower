@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Stower CI Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- ★ CSSを外部ファイルから読み込む -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="container">
+        <div class="hero">
+            <h1><i class="fa-solid fa-ship"></i> Stower CI Dashboard</h1>
+            <p>Compose-driven Lightweight CI/CD System</p>
+        </div>
+
+        <section>
+            <h3><i class="fa-solid fa-binoculars"></i> Monitored Projects</h3>
+            <table role="grid">
+                <thead>
+                    <tr>
+                        <th>Repository</th>
+                        <th>Branch</th>
+                        <th>Status</th> <!-- ★ 追加 -->
+                        <th>Interval</th>
+                        <th>Registry</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="project-list">
+                </tbody>
+            </table>
+        </section>
+
+        <hr>
+
+        <section>
+            <h3 id="form-title"><i class="fa-solid fa-plus"></i> Add New Project</h3>
+            <form id="add-form">
+                <div class="grid">
+                    <label>
+                        Git Repository URL
+                        <input type="url" id="repo" placeholder="https://github.com/user/repo.git" required>
+                    </label>
+                    <label>
+                        Branch
+                        <input type="text" id="branch" value="main" required>
+                    </label>
+                </div>
+                <div class="grid">
+                    <label>
+                        Polling Interval
+                        <input type="text" id="interval" value="1m" placeholder="e.g. 30s, 1m" required>
+                    </label>
+                    <label>
+                        Registry Server
+                        <input type="text" id="registry" value="localhost:5000">
+                    </label>
+                </div>
+                <!-- 登録・更新・キャンセルのボタン群 -->
+                <button type="submit" id="submit-btn">Start Monitoring</button>
+                <button type="button" id="cancel-btn" class="secondary" style="display: none;" onclick="cancelEdit()">Cancel Edit</button>
+            </form>
+        </section>
+    </main>
+
+    <!-- ★ 追加: ログ表示用のモーダル -->
+    <dialog id="log-modal">
+        <article style="max-width: 800px; width: 100%;">
+            <header>
+                <a href="#close" aria-label="Close" class="close" onclick="closeLogModal()"></a>
+                <h3 id="log-modal-title" style="margin: 0;"><i class="fa-solid fa-terminal"></i> Build Logs</h3>
+            </header>
+            <!-- ログは等幅フォントで折り返し表示 -->
+            <pre><code id="log-modal-content" style="white-space: pre-wrap; word-wrap: break-word; font-size: 0.85rem;"></code></pre>
+        </article>
+    </dialog>
+
+    <!-- ★ JavaScriptを外部ファイルから読み込む -->
+    <script src="main.js"></script>
+</body>
+</html>

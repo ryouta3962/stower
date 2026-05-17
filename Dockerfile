@@ -6,7 +6,7 @@ COPY go.mod ./
 COPY go.* ./
 RUN go mod download || true
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o stower ./cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o stower ./cmd
 
 # --- Stage 2: Create the minimal execution environment ---
 FROM alpine:3.19

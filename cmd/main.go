@@ -1,41 +1,67 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
-	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
+// --- Structs ---
 type Config struct {
-	Projects []Project `yaml:"projects"`
+	Projects []Project `yaml:"projects" json:"projects"`
 }
 
-// レジストリ情報を追加
 type Registry struct {
-	Server      string `yaml:"server"`
-	Username    string `yaml:"username"`
-	PasswordEnv string `yaml:"password_env"`
+	Server      string `yaml:"server" json:"server"`
+	Username    string `yaml:"username" json:"username"`
+	PasswordEnv string `yaml:"password_env" json:"password_env"`
 }
 
 type Project struct {
-	Name     string   `yaml:"name"`
-	Repo     string   `yaml:"repo"`
-	Branch   string   `yaml:"branch"`
-	Trigger  Trigger  `yaml:"trigger"`
-	Registry Registry `yaml:"registry"` // 追加
+	Repo     string   `yaml:"repo" json:"repo"`
+	Branch   string   `yaml:"branch" json:"branch"`
+	Trigger  Trigger  `yaml:"trigger" json:"trigger"`
+	Registry Registry `yaml:"registry" json:"registry"`
+	
+	// ★ 追加：UI表示用のステータス（YAMLには保存せず、JSONにのみ含める）
+	LastStatus string `yaml:"-" json:"last_status"`
+	LastLog    string `yaml:"-" json:"last_log"`
 }
 
 type Trigger struct {
-	Type     string `yaml:"type"`
-	Interval string `yaml:"interval"`
+	Type     string `yaml:"type" json:"type"`
+	Interval string `yaml:"interval" json:"interval"`
+}
+
+// APIレスポンス用にIDを付与する構造体
+type ProjectResponse struct {
+	ID string `json:"id"`
+	Project
+}
+
+// --- Globals ---
+var (
+	globalConfig *Config
+	configMutex  sync.Mutex
+	configPath   = "/app/config.yml"
+	// ゴルーチンを停止するためのキャンセル関数を保持するマップ
+	cancelFuncs  = make(map[string]context.CancelFunc)
+)
+
+// --- Helpers ---
+func getProjectID(p Project) string {
+	parts := strings.Split(p.Repo, "/")
+	repoName := parts[len(parts)-1]
+	repoName = strings.TrimSuffix(repoName, ".git")
+	return fmt.Sprintf("%s-%s", repoName, p.Branch)
 }
 
 func loadConfig(path string) (*Config, error) {
@@ -50,128 +76,44 @@ func loadConfig(path string) (*Config, error) {
 	return &config, nil
 }
 
-func runDockerCompose(targetDir string, args ...string) error {
-	cmdArgs := append([]string{"compose"}, args...)
-	cmd := exec.Command("docker", cmdArgs...)
-	cmd.Dir = targetDir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-// Dockerレジストリへのログイン処理（設定がある場合のみ）
-func loginDocker(reg Registry) error {
-	// ユーザー名やパスワード設定がない場合はログインをスキップ（ローカルテスト用など）
-	if reg.Server == "" || reg.Username == "" || reg.PasswordEnv == "" {
-		return nil
-	}
-	pass := os.Getenv(reg.PasswordEnv)
-	log.Printf("Logging into registry: %s...", reg.Server)
-	cmd := exec.Command("docker", "login", reg.Server, "-u", reg.Username, "--password-stdin")
-	cmd.Stdin = strings.NewReader(pass)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-func getLatestCommit(repo, branch string) (string, error) {
-	cmd := exec.Command("git", "ls-remote", repo, branch)
-	out, err := cmd.Output()
+func saveConfig() error {
+	data, err := yaml.Marshal(globalConfig)
 	if err != nil {
-		return "", err
+		return err
 	}
-	fields := strings.Fields(string(out))
-	if len(fields) > 0 {
-		return fields[0], nil
-	}
-	return "", fmt.Errorf("branch not found")
-}
-
-func cloneRepo(repo, branch, dest string) error {
-	os.RemoveAll(dest)
-	cmd := exec.Command("git", "clone", "--branch", branch, "--single-branch", repo, dest)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-func pollProject(proj Project) {
-	duration, err := time.ParseDuration(proj.Trigger.Interval)
-	if err != nil {
-		log.Printf("[%s] Invalid interval %s: %v", proj.Name, proj.Trigger.Interval, err)
-		return
-	}
-	ticker := time.NewTicker(duration)
-	defer ticker.Stop()
-
-	lastHash := ""
-	dest := filepath.Join("/app/workspace", proj.Name)
-
-	log.Printf("[%s] Started polling every %s", proj.Name, duration)
-
-	checkAndBuild := func() {
-		log.Printf("[%s] Checking for updates...", proj.Name)
-		hash, err := getLatestCommit(proj.Repo, proj.Branch)
-		if err != nil {
-			log.Printf("[%s] Failed to fetch commit: %v", proj.Name, err)
-			return
-		}
-
-		if hash == lastHash {
-			return // 変更なし
-		}
-		log.Printf("[%s] New commit detected! %s", proj.Name, hash[:7])
-		lastHash = hash
-
-		// 1. レジストリにログイン (必要な場合)
-		if err := loginDocker(proj.Registry); err != nil {
-			log.Printf("[%s] Docker login failed: %v", proj.Name, err)
-			return
-		}
-
-		// 2. クローン
-		log.Printf("[%s] Cloning repository...", proj.Name)
-		if err := cloneRepo(proj.Repo, proj.Branch, dest); err != nil {
-			log.Printf("[%s] Clone failed: %v", proj.Name, err)
-			return
-		}
-
-		// 3. ビルド
-		log.Printf("[%s] Starting Docker Compose Build...", proj.Name)
-		if err := runDockerCompose(dest, "build"); err != nil {
-			log.Printf("[%s] Build failed: %v", proj.Name, err)
-			return
-		}
-
-		// 4. プッシュ (追加!)
-		log.Printf("[%s] Starting Docker Compose Push...", proj.Name)
-		if err := runDockerCompose(dest, "push"); err != nil {
-			log.Printf("[%s] Push failed: %v", proj.Name, err)
-			return
-		}
-
-		log.Printf("[%s] Pipeline Success! Build & Push completed.", proj.Name)
-	}
-
-	checkAndBuild()
-	for range ticker.C {
-		checkAndBuild()
-	}
+	return os.WriteFile(configPath, data, 0644)
 }
 
 func main() {
 	fmt.Println("Starting Stower CI...")
 
-	config, err := loadConfig("/app/config.yml")
+	var err error
+	globalConfig, err = loadConfig(configPath)
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		globalConfig = &Config{}
 	}
 
-	for _, proj := range config.Projects {
+	for _, proj := range globalConfig.Projects {
 		if proj.Trigger.Type == "polling" {
-			go pollProject(proj)
+			startPolling(proj)
 		}
 	}
+
+	// --- Go 1.22 の強力なメソッドルーティング ---
+	http.HandleFunc("GET /api/projects", handleGetProjects)
+	http.HandleFunc("POST /api/projects", handlePostProject)
+	http.HandleFunc("PUT /api/projects/{id}", handlePutProject)
+	http.HandleFunc("DELETE /api/projects/{id}", handleDeleteProject)
+	http.HandleFunc("POST /api/projects/{id}/trigger", handleTriggerProject)
+	
+	http.Handle("/", http.FileServer(http.Dir("/app/public")))
+
+	go func() {
+		log.Println("API & UI Server listening on port 8080...")
+		if err := http.ListenAndServe(":8080", nil); err != nil {
+			log.Fatalf("Server failed: %v", err)
+		}
+	}()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
