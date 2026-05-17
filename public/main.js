@@ -152,6 +152,10 @@ function editProject(projectStr) {
     document.getElementById('interval').value = p.trigger.interval;
     document.getElementById('registry').value = p.registry.server;
     
+    // ★ 追加
+    document.getElementById('git-user').value = p.git_auth ? p.git_auth.username : '';
+    document.getElementById('git-pass-env').value = p.git_auth ? p.git_auth.password_env : '';
+    
     document.getElementById('submit-btn').innerText = "Update Project";
     document.getElementById('cancel-btn').style.display = 'inline-block';
     
@@ -168,6 +172,10 @@ function cancelEdit() {
     document.getElementById('branch').value = 'main';
     document.getElementById('interval').value = '1m';
     document.getElementById('registry').value = 'localhost:5000';
+    
+    // ★ 追加
+    document.getElementById('git-user').value = '';
+    document.getElementById('git-pass-env').value = '';
 
     document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-plus"></i> Add New Project';
     document.getElementById('submit-btn').innerText = "Start Monitoring";
@@ -185,6 +193,11 @@ document.getElementById('add-form').addEventListener('submit', async (e) => {
         registry: { 
             server: document.getElementById('registry').value,
             username: '', password_env: '' 
+        },
+        // ★ 追加
+        git_auth: {
+            username: document.getElementById('git-user').value,
+            password_env: document.getElementById('git-pass-env').value
         }
     };
 

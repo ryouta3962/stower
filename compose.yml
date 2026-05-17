@@ -47,3 +47,4 @@ services:
       - local-registry
     environment:
       - TZ=Asia/Tokyo
+      - GITHUB_PAT=$GITHUB_PAT

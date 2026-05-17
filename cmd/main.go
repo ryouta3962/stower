@@ -25,11 +25,18 @@ type Registry struct {
 	PasswordEnv string `yaml:"password_env" json:"password_env"`
 }
 
+// ★ 追加: Git認証情報
+type GitAuth struct {
+	Username    string `yaml:"username" json:"username"`
+	PasswordEnv string `yaml:"password_env" json:"password_env"`
+}
+
 type Project struct {
 	Repo     string   `yaml:"repo" json:"repo"`
 	Branch   string   `yaml:"branch" json:"branch"`
 	Trigger  Trigger  `yaml:"trigger" json:"trigger"`
 	Registry Registry `yaml:"registry" json:"registry"`
+	GitAuth  GitAuth  `yaml:"git_auth" json:"git_auth"` // ★ 追加
 	
 	// ★ 追加：UI表示用のステータス（YAMLには保存せず、JSONにのみ含める）
 	LastStatus string `yaml:"-" json:"last_status"`

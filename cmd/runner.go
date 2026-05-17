@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url" // ★ 追加
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -80,8 +81,34 @@ func loginDocker(reg Registry) error {
 	return cmd.Run()
 }
 
-func getLatestCommit(repo, branch string) (string, error) {
-	cmd := exec.Command("git", "ls-remote", repo, branch)
+// ★ 追加: GitのURLに認証情報を付与するヘルパー関数
+func getAuthRepoURL(repo string, auth GitAuth) (string, error) {
+	if auth.Username == "" || auth.PasswordEnv == "" {
+		return repo, nil // 認証情報がなければそのまま返す（公開リポジトリ用）
+	}
+	
+	pass := os.Getenv(auth.PasswordEnv)
+	if pass == "" {
+		return "", fmt.Errorf("Git password env var %s is not set", auth.PasswordEnv)
+	}
+
+	u, err := url.Parse(repo)
+	if err != nil {
+		return "", err
+	}
+	
+	// URLにユーザー名とパスワードをセット (例: https://user:pass@github.com/...)
+	u.User = url.UserPassword(auth.Username, pass)
+	return u.String(), nil
+}
+
+// ★ 修正: URLではなく Project を受け取るように変更
+func getLatestCommit(proj Project) (string, error) {
+	authURL, err := getAuthRepoURL(proj.Repo, proj.GitAuth)
+	if err != nil {
+		return "", err
+	}
+	cmd := exec.Command("git", "ls-remote", authURL, proj.Branch)
 	out, err := cmd.Output()
 	if err != nil {
 		return "", err
@@ -93,9 +120,14 @@ func getLatestCommit(repo, branch string) (string, error) {
 	return "", fmt.Errorf("branch not found")
 }
 
-func cloneRepo(repo, branch, dest string) error {
+// ★ 修正: URLではなく Project を受け取るように変更
+func cloneRepo(proj Project, dest string) error {
+	authURL, err := getAuthRepoURL(proj.Repo, proj.GitAuth)
+	if err != nil {
+		return err
+	}
 	os.RemoveAll(dest)
-	cmd := exec.Command("git", "clone", "--branch", branch, "--single-branch", repo, dest)
+	cmd := exec.Command("git", "clone", "--branch", proj.Branch, "--single-branch", authURL, dest)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
@@ -126,7 +158,7 @@ func runPipeline(proj Project) error {
 	}
 
 	appendLog("📥 Cloning repository...")
-	if err := cloneRepo(proj.Repo, proj.Branch, dest); err != nil {
+	if err := cloneRepo(proj, dest); err != nil {
 		appendLog(fmt.Sprintf("❌ Clone failed: %v", err))
 		setProjectStatus(projID, "Failed", fullLog.String())
 		return err
@@ -198,7 +230,7 @@ func pollProject(ctx context.Context, proj Project) {
 
 	checkAndBuild := func() {
 		log.Printf("[%s] 🔍 Checking for updates...", projID)
-		hash, err := getLatestCommit(proj.Repo, proj.Branch)
+		hash, err := getLatestCommit(proj)
 		if err != nil {
 			log.Printf("[%s] ⚠️ Failed to fetch commit: %v", projID, err)
 			return

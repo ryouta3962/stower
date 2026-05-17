@@ -1,11 +1,13 @@
 projects:
-    - name: api-test-app
-      repo: https://github.com/ryouta3962/test_web.git
+    - repo: https://github.com/ryouta3962/test_web.git
       branch: main
       trigger:
         type: polling
-        interval: 10m
+        interval: 1m
       registry:
         server: localhost:5000
         username: ""
         password_env: ""
+      git_auth:
+        username: ryouta3962
+        password_env: GITHUB_PAT

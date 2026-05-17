@@ -60,6 +60,18 @@
                         <input type="text" id="registry" value="localhost:5000">
                     </label>
                 </div>
+                
+                <!-- ★ 追加: Git認証情報 -->
+                <div class="grid">
+                    <label>
+                        Git Username (Optional)
+                        <input type="text" id="git-user" placeholder="For private repos">
+                    </label>
+                    <label>
+                        Git Password Env Var (Optional)
+                        <input type="text" id="git-pass-env" placeholder="e.g. GITHUB_PAT">
+                    </label>
+                </div>
                 <!-- 登録・更新・キャンセルのボタン群 -->
                 <button type="submit" id="submit-btn">Start Monitoring</button>
                 <button type="button" id="cancel-btn" class="secondary" style="display: none;" onclick="cancelEdit()">Cancel Edit</button>
