@@ -12,3 +12,5 @@ workspace/
 # OSのシステムファイル
 .DS_Store
 Thumbs.db
+
+all.txt
