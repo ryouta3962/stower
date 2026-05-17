@@ -25,7 +25,6 @@ type Registry struct {
 	PasswordEnv string `yaml:"password_env" json:"password_env"`
 }
 
-// ★ 追加: Git認証情報
 type GitAuth struct {
 	Username    string `yaml:"username" json:"username"`
 	PasswordEnv string `yaml:"password_env" json:"password_env"`
@@ -36,9 +35,9 @@ type Project struct {
 	Branch   string   `yaml:"branch" json:"branch"`
 	Trigger  Trigger  `yaml:"trigger" json:"trigger"`
 	Registry Registry `yaml:"registry" json:"registry"`
-	GitAuth  GitAuth  `yaml:"git_auth" json:"git_auth"` // ★ 追加
+	GitAuth  GitAuth  `yaml:"git_auth" json:"git_auth"`
 	
-	// ★ 追加：UI表示用のステータス（YAMLには保存せず、JSONにのみ含める）
+	// UI表示用のステータス（YAMLには保存せず、JSONにのみ含める）
 	LastStatus string `yaml:"-" json:"last_status"`
 	LastLog    string `yaml:"-" json:"last_log"`
 }
@@ -58,7 +57,7 @@ type ProjectResponse struct {
 var (
 	globalConfig *Config
 	configMutex  sync.Mutex
-	configPath   = "/app/config.yml"
+	configPath   = "/app/workspace/config.yml"
 	// ゴルーチンを停止するためのキャンセル関数を保持するマップ
 	cancelFuncs  = make(map[string]context.CancelFunc)
 )
@@ -94,6 +93,15 @@ func saveConfig() error {
 func main() {
 	fmt.Println("Starting Stower CI...")
 
+	// config.ymlが存在しない場合、空のファイルを作成する
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		log.Println("config.yml not found. Creating a new one in workspace...")
+		// 完全な空ファイルでも良いですが、YAMLとしてパース可能な初期構造を入れておくと安全です
+		if err := os.WriteFile(configPath, []byte("projects: []\n"), 0644); err != nil {
+			log.Fatalf("Failed to create config.yml: %v", err)
+		}
+	}
+
 	var err error
 	globalConfig, err = loadConfig(configPath)
 	if err != nil {
@@ -112,7 +120,7 @@ func main() {
 	http.HandleFunc("PUT /api/projects/{id}", handlePutProject)
 	http.HandleFunc("DELETE /api/projects/{id}", handleDeleteProject)
 	http.HandleFunc("POST /api/projects/{id}/trigger", handleTriggerProject)
-	http.HandleFunc("GET /api/projects/{id}/logs", handleGetProjectLogs) // ★ 追加
+	http.HandleFunc("GET /api/projects/{id}/logs", handleGetProjectLogs)
 	
 	http.Handle("/", http.FileServer(http.Dir("/app/public")))
 

@@ -14,7 +14,6 @@ FROM alpine:3.19
 # Stowerが裏側で使う必須コマンドをインストール
 RUN apk add --no-cache docker-cli docker-cli-compose git
 
-# ★ここを追加！(マウントしたディレクトリの権限エラーを回避する魔法のコマンド)
 RUN git config --global --add safe.directory '*'
 
 WORKDIR /app

@@ -6,7 +6,6 @@ services:
     ports:
       - "5000:5000"
     restart: unless-stopped
-    # ★ここをごっそり追加（CORSを許可する魔法の呪文です）
     environment:
       REGISTRY_HTTP_HEADERS_Access-Control-Allow-Origin: "['*']"
       REGISTRY_HTTP_HEADERS_Access-Control-Allow-Methods: "['HEAD', 'GET', 'OPTIONS', 'DELETE']"
@@ -22,13 +21,12 @@ services:
       - "8081:80"
     environment:
       - REGISTRY_TITLE=Stower Local Registry
-      - REGISTRY_URL=http://localhost:5000 # ★ここも localhost に明示的に変更しておくと確実です
+      - REGISTRY_URL=http://localhost:5000
       - DELETE_IMAGES=true
       - TZ=Asia/Tokyo
     depends_on:
       - local-registry
   # Stower本体
-# compose.yml （Stower部分のみ抜粋して変更）
   stower:
     build:
       context: .
@@ -36,13 +34,11 @@ services:
     container_name: stower-ci
     restart: unless-stopped
     ports:
-      - "8080:8080" # ★API用のポートを開放
-# compose.yml （stowerのvolumes部分のみ）
+      - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./config.yml:/app/config.yml
       - ./workspace:/app/workspace
-      - ./public:/app/public # ★これを追加（HTMLファイル群のマウント）
+      - ./public:/app/public
     depends_on:
       - local-registry
     environment:

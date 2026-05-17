@@ -22,7 +22,7 @@ func handleGetProjects(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(res)
 }
 
-// POST /api/projects (追加)
+// POST /api/projects
 func handlePostProject(w http.ResponseWriter, r *http.Request) {
 	var newProj Project
 	if err := json.NewDecoder(r.Body).Decode(&newProj); err != nil {
@@ -47,9 +47,9 @@ func handlePostProject(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `{"message": "Project added!"}`)
 }
 
-// DELETE /api/projects/{id} (削除)
+// DELETE /api/projects/{id}
 func handleDeleteProject(w http.ResponseWriter, r *http.Request) {
-	targetID := r.PathValue("id") // Go 1.22からの新機能！
+	targetID := r.PathValue("id")
 
 	configMutex.Lock()
 	filtered := []Project{}
@@ -82,7 +82,7 @@ func handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `{"message": "Project deleted!"}`)
 }
 
-// PUT /api/projects/{id} (更新)
+// PUT /api/projects/{id}
 func handlePutProject(w http.ResponseWriter, r *http.Request) {
 	targetID := r.PathValue("id")
 

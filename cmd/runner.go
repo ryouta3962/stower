@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/url" // ★ 追加
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,9 +15,7 @@ import (
 	"time"
 )
 
-// ... Docker & Git 系の関数 (runDockerCompose, loginDocker, getLatestCommit, cloneRepo) はそのまま ...
-
-// ★ 追加: ステータスとログを安全に更新するヘルパー関数
+// ステータスとログを安全に更新するヘルパー関数
 func setProjectStatus(projID string, status string, logMsg string) {
 	configMutex.Lock()
 	defer configMutex.Unlock()
@@ -30,7 +28,7 @@ func setProjectStatus(projID string, status string, logMsg string) {
 	}
 }
 
-// ★ 修正: コマンドの出力を1行ずつリアルタイムに読み取り、コールバックに渡す関数
+// コマンドの出力を1行ずつリアルタイムに読み取り、コールバックに渡す関数
 func runDockerComposeStream(targetDir string, logCallback func(string), args ...string) error {
 	cmdArgs := append([]string{"compose"}, args...)
 	cmd := exec.Command("docker", cmdArgs...)
@@ -81,7 +79,7 @@ func loginDocker(reg Registry) error {
 	return cmd.Run()
 }
 
-// ★ 追加: GitのURLに認証情報を付与するヘルパー関数
+// GitのURLに認証情報を付与するヘルパー関数
 func getAuthRepoURL(repo string, auth GitAuth) (string, error) {
 	if auth.Username == "" || auth.PasswordEnv == "" {
 		return repo, nil // 認証情報がなければそのまま返す（公開リポジトリ用）
@@ -102,7 +100,6 @@ func getAuthRepoURL(repo string, auth GitAuth) (string, error) {
 	return u.String(), nil
 }
 
-// ★ 修正: URLではなく Project を受け取るように変更
 func getLatestCommit(proj Project) (string, error) {
 	authURL, err := getAuthRepoURL(proj.Repo, proj.GitAuth)
 	if err != nil {
@@ -120,7 +117,6 @@ func getLatestCommit(proj Project) (string, error) {
 	return "", fmt.Errorf("branch not found")
 }
 
-// ★ 修正: URLではなく Project を受け取るように変更
 func cloneRepo(proj Project, dest string) error {
 	authURL, err := getAuthRepoURL(proj.Repo, proj.GitAuth)
 	if err != nil {
@@ -132,7 +128,7 @@ func cloneRepo(proj Project, dest string) error {
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
-// ★追加: 実際のビルド＆プッシュ処理を独立した関数に切り出し
+// 実際のビルド＆プッシュ処理を独立した関数に切り出し
 func runPipeline(proj Project) error {
 	projID := getProjectID(proj)
 	dest := filepath.Join("/app/workspace", projID)
@@ -140,7 +136,7 @@ func runPipeline(proj Project) error {
 	var fullLog strings.Builder
 	var logMutex sync.Mutex
 
-	// ★ ログを追記して、即座にステータスを更新する関数
+	// ログを追記して、即座にステータスを更新する関数
 	appendLog := func(msg string) {
 		logMutex.Lock()
 		fullLog.WriteString(msg + "\n")
@@ -165,7 +161,6 @@ func runPipeline(proj Project) error {
 	}
 
 	appendLog("🔨 Starting Build...")
-	// runDockerCompose ではなく、ストリーミング用の関数を呼ぶ
 	err := runDockerComposeStream(dest, appendLog, "build")
 	if err != nil {
 		appendLog(fmt.Sprintf("❌ Build failed: %v", err))
@@ -186,7 +181,7 @@ func runPipeline(proj Project) error {
 	return nil
 }
 
-// ★追加: 手動でビルドをキックする関数（非同期で実行）
+// 手動でビルドをキックする関数（非同期で実行）
 func TriggerBuild(projID string) error {
 	configMutex.Lock()
 	var targetProj *Project
@@ -244,7 +239,6 @@ func pollProject(ctx context.Context, proj Project) {
 		log.Printf("[%s] ✨ New commit detected! %s", projID, hash[:7])
 		lastHash = hash
 
-		// 切り出した runPipeline を呼び出す
 		if err := runPipeline(proj); err != nil {
 			log.Printf("[%s] ❌ Pipeline failed: %v", projID, err)
 		}

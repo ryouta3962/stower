@@ -1,109 +1,183 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Stower CI Dashboard</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
-    
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- ★ CSSを外部ファイルから読み込む -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stower Dashboard</title>
+    <meta name="description" content="Stower CI/CD Dashboard">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <main class="container">
-        <div class="hero">
-            <h1><i class="fa-solid fa-ship"></i> Stower CI Dashboard</h1>
-            <p>Compose-driven Lightweight CI/CD System</p>
+    <div class="app-background"></div>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="brand">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="brand-icon"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                <h1>Stower</h1>
+            </div>
+            <button id="btn-add-project" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                New Project
+            </button>
+        </header>
+
+        <main class="app-main">
+            <div id="projects-empty" class="empty-state hidden">
+                <div class="empty-icon">📦</div>
+                <h2>No Projects Found</h2>
+                <p>Get started by adding your first project to monitor.</p>
+                <button class="btn btn-primary" onclick="document.getElementById('btn-add-project').click()">Add Project</button>
+            </div>
+            
+            <div id="projects-grid" class="projects-grid">
+                <!-- Projects will be rendered here dynamically -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Project Form Modal -->
+    <div id="project-modal" class="modal-backdrop hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modal-title">Add Project</h2>
+                <button class="btn-close modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="project-form">
+                    <input type="hidden" id="form-id">
+                    
+                    <div class="form-group">
+                        <label for="form-repo">Repository URL</label>
+                        <input type="text" id="form-repo" placeholder="https://github.com/user/repo.git" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-branch">Branch</label>
+                        <input type="text" id="form-branch" placeholder="main" required>
+                    </div>
+
+                    <div class="form-section-title">Trigger</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="form-trigger-type">Type</label>
+                            <select id="form-trigger-type">
+                                <option value="polling">Polling</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="form-trigger-interval">Interval</label>
+                            <input type="text" id="form-trigger-interval" placeholder="1m" value="1m">
+                        </div>
+                    </div>
+
+                    <div class="form-section-title">Registry (Optional)</div>
+                    <div class="form-group">
+                        <label for="form-reg-server">Server</label>
+                        <input type="text" id="form-reg-server" placeholder="localhost:5000">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="form-reg-user">Username</label>
+                            <input type="text" id="form-reg-user" placeholder="docker_user">
+                        </div>
+                        <div class="form-group">
+                            <label for="form-reg-pass-env">Password Env Var</label>
+                            <input type="text" id="form-reg-pass-env" placeholder="DOCKER_PASS_ENV">
+                        </div>
+                    </div>
+
+                    <div class="form-section-title">Git Auth (Optional)</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="form-git-user">Username</label>
+                            <input type="text" id="form-git-user" placeholder="git_user">
+                        </div>
+                        <div class="form-group">
+                            <label for="form-git-pass-env">Password Env Var</label>
+                            <input type="text" id="form-git-pass-env" placeholder="GIT_PASS_ENV">
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary modal-close-btn">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="btn-save-project">Save Project</button>
+                    </div>
+                </form>
+            </div>
         </div>
+    </div>
 
-        <section>
-            <h3><i class="fa-solid fa-binoculars"></i> Monitored Projects</h3>
-            <table role="grid">
-                <thead>
-                    <tr>
-                        <th>Repository</th>
-                        <th>Branch</th>
-                        <th>Status</th> <!-- ★ 追加 -->
-                        <th>Interval</th>
-                        <th>Registry</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="project-list">
-                </tbody>
-            </table>
-        </section>
-
-        <hr>
-
-        <section>
-            <h3 id="form-title"><i class="fa-solid fa-plus"></i> Add New Project</h3>
-            <form id="add-form">
-                <div class="grid">
-                    <label>
-                        Git Repository URL
-                        <input type="url" id="repo" placeholder="https://github.com/user/repo.git" required>
-                    </label>
-                    <label>
-                        Branch
-                        <input type="text" id="branch" value="main" required>
-                    </label>
+    <!-- Logs Modal -->
+    <div id="logs-modal" class="modal-backdrop hidden">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h2>Build Logs</h2>
+                <div class="header-actions">
+                    <div class="live-indicator">
+                        <span class="pulse-dot"></span> Live
+                    </div>
+                    <button class="btn-close" id="logs-close-btn">&times;</button>
                 </div>
-                <div class="grid">
-                    <label>
-                        Polling Interval
-                        <input type="text" id="interval" value="1m" placeholder="e.g. 30s, 1m" required>
-                    </label>
-                    <label>
-                        Registry Server
-                        <input type="text" id="registry" value="localhost:5000">
-                    </label>
-                </div>
-                
-                <!-- ★ 追加: レジストリ認証情報 -->
-                <div class="grid">
-                    <label>
-                        Registry Username (Optional)
-                        <input type="text" id="registry-user" placeholder="e.g. dockerhub_user">
-                    </label>
-                    <label>
-                        Registry Password Env Var (Optional)
-                        <input type="text" id="registry-pass-env" placeholder="e.g. DOCKER_HUB_PAT">
-                    </label>
-                </div>
-                
-                <!-- ★ 追加: Git認証情報 -->
-                <div class="grid">
-                    <label>
-                        Git Username (Optional)
-                        <input type="text" id="git-user" placeholder="For private repos">
-                    </label>
-                    <label>
-                        Git Password Env Var (Optional)
-                        <input type="text" id="git-pass-env" placeholder="e.g. GITHUB_PAT">
-                    </label>
-                </div>
-                <!-- 登録・更新・キャンセルのボタン群 -->
-                <button type="submit" id="submit-btn">Start Monitoring</button>
-                <button type="button" id="cancel-btn" class="secondary" style="display: none;" onclick="cancelEdit()">Cancel Edit</button>
-            </form>
-        </section>
-    </main>
+            </div>
+            <div class="modal-body logs-body">
+                <pre id="logs-content" class="logs-container">Loading logs...</pre>
+            </div>
+        </div>
+    </div>
 
-    <!-- ★ 追加: ログ表示用のモーダル -->
-    <dialog id="log-modal">
-        <article style="max-width: 800px; width: 100%;">
-            <header>
-                <a href="#close" aria-label="Close" class="close" onclick="closeLogModal()"></a>
-                <h3 id="log-modal-title" style="margin: 0;"><i class="fa-solid fa-terminal"></i> Build Logs</h3>
-            </header>
-            <!-- ログは等幅フォントで折り返し表示 -->
-            <pre><code id="log-modal-content" style="white-space: pre-wrap; word-wrap: break-word; font-size: 0.85rem;"></code></pre>
-        </article>
-    </dialog>
+    <!-- Confirm Dialog Modal -->
+    <div id="confirm-modal" class="modal-backdrop hidden">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2>Confirm Delete</h2>
+                <button class="btn-close" id="confirm-close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this project? This action cannot be undone.</p>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="confirm-cancel-btn">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirm-ok-btn">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <!-- ★ JavaScriptを外部ファイルから読み込む -->
-    <script src="main.js"></script>
+    <!-- Templates for dynamic elements -->
+    <template id="project-card-template">
+        <div class="project-card">
+            <div class="card-header">
+                <h3 class="repo-name">repo-name</h3>
+                <span class="status-badge">Status</span>
+            </div>
+            <div class="card-body">
+                <div class="info-row">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+                    <span class="branch-name">branch</span>
+                </div>
+                <div class="info-row">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <span class="interval-time">interval</span>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-sm btn-action btn-run" title="Run Build">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </button>
+                <button class="btn btn-sm btn-action btn-logs" title="View Logs">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                </button>
+                <div class="spacer"></div>
+                <button class="btn btn-sm btn-action btn-edit" title="Edit">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="btn btn-sm btn-action btn-delete-action" title="Delete">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <script src="app.js"></script>
 </body>
 </html>
