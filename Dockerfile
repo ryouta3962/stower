@@ -19,7 +19,10 @@ RUN git config --global --add safe.directory '*'
 WORKDIR /app
 
 COPY --from=builder /app/stower /app/stower
+COPY --from=builder /app/public /app/public
 RUN chmod +x /app/stower
 RUN mkdir -p /app/workspace
+
+LABEL org.opencontainers.image.source="https://github.com/ryouta3962/stower"
 
 ENTRYPOINT ["/app/stower"]
