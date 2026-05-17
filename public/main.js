@@ -152,6 +152,10 @@ function editProject(projectStr) {
     document.getElementById('interval').value = p.trigger.interval;
     document.getElementById('registry').value = p.registry.server;
     
+    // ★ 追加: レジストリ認証情報の読み込み
+    document.getElementById('registry-user').value = p.registry.username || '';
+    document.getElementById('registry-pass-env').value = p.registry.password_env || '';
+    
     // ★ 追加
     document.getElementById('git-user').value = p.git_auth ? p.git_auth.username : '';
     document.getElementById('git-pass-env').value = p.git_auth ? p.git_auth.password_env : '';
@@ -173,6 +177,10 @@ function cancelEdit() {
     document.getElementById('interval').value = '1m';
     document.getElementById('registry').value = 'localhost:5000';
     
+    // ★ 追加: レジストリ認証情報のクリア
+    document.getElementById('registry-user').value = '';
+    document.getElementById('registry-pass-env').value = '';
+    
     // ★ 追加
     document.getElementById('git-user').value = '';
     document.getElementById('git-pass-env').value = '';
@@ -190,9 +198,11 @@ document.getElementById('add-form').addEventListener('submit', async (e) => {
         repo: document.getElementById('repo').value,
         branch: document.getElementById('branch').value,
         trigger: { type: 'polling', interval: document.getElementById('interval').value },
+        // ★ 修正: レジストリ認証情報をフォームから取得
         registry: { 
             server: document.getElementById('registry').value,
-            username: '', password_env: '' 
+            username: document.getElementById('registry-user').value,
+            password_env: document.getElementById('registry-pass-env').value 
         },
         // ★ 追加
         git_auth: {
