@@ -21,7 +21,7 @@ Stower itself is provided as a Docker container. Please place the following `com
 ```yaml
 services:
   stower:
-    image: ghcr.io/<YOUR_GITHUB_USERNAME>/stower:latest
+    image: ghcr.io/ryouta3962/stower:latest
     container_name: stower-ci
     restart: unless-stopped
     ports:
@@ -128,8 +128,8 @@ Stower（ストワー）は、軽量でセルフホスト可能なDocker Compose
 
 - **Docker Composeネイティブ**: 監視対象リポジトリの `compose.yml` をそのままビルド手順として利用します。
 - **シンプルなWeb UI**: プロジェクトの管理、ステータス確認、リアルタイムなログ監視がブラウザ上で完結します。
-- **柔軟なトリガー**: Gitリポジトリのポーリング（定期監視）と、手動トリガーに対応。
-- **安全な認証管理**: Gitのプライベートリポジトリや、プライベートなDockerコンテナレジストリへの認証情報を環境変数経由で安全に扱います。
+- **トリガー**: Gitリポジトリのポーリング（定期監視）と、手動トリガーに対応。
+- **認証管理**: Gitのプライベートリポジトリや、プライベートなDockerコンテナレジストリへの認証情報を環境変数経由で安全に扱います。
 
 ---
 
@@ -140,7 +140,7 @@ Stower本体はDockerコンテナとして提供されています。本番環�
 ```yaml
 services:
   stower:
-    image: ghcr.io/<YOUR_GITHUB_USERNAME>/stower:latest
+    image: ghcr.io/ryouta3962/stower:latest
     container_name: stower-ci
     restart: unless-stopped
     ports:
